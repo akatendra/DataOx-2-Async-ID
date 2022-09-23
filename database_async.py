@@ -10,9 +10,9 @@ logger = logging.getLogger(__name__)
 
 def create_connection():
     # Connection to local PostgreSQL DB DataOx
-    connection = psycopg2.connect(database='dataox_async',
-                                  user='dataox_async7396',
-                                  password='jiWkLUYZMK',
+    connection = psycopg2.connect(database='dataox_async_id',
+                                  user='dataox_async_id8135',
+                                  password='LyWTtvxobT',
                                   host='127.0.0.1',
                                   port='5432'
                                   )
@@ -46,7 +46,7 @@ def execute_sql_query(sql, fetch=True, data=None):
 
 def get_item_ids():
     table = 'items'
-    sql_get_items_ids = f'SELECT data_listing_id FROM {table};'
+    sql_get_items_ids = f'SELECT id FROM {table};'
     item_ids = execute_sql_query(sql_get_items_ids)
     item_ids_tuple = set((item[0] for item in item_ids))
     logger.debug(f'Items_ids tuple received from DB: {len(item_ids_tuple)}')
@@ -57,7 +57,7 @@ def write_to_db(data):
     table = 'items'
     sql_put_data = f'''
                    INSERT INTO {table}
-                   (data_listing_id,
+                   (id,
                     data_vip_url,
                     image_url,
                     title,
@@ -77,11 +77,11 @@ def write_to_db(data):
     item_ids = set(data.keys())
     logger.debug(
         f'item_ids from parsed data: {type(item_ids)}, {len(item_ids)}, {item_ids}')
-    item_ids_database = get_item_ids()
-    item_ids_to_write = item_ids.difference(item_ids_database)
-    logger.debug(f'item_ids_to_write: {item_ids_to_write}')
+    # item_ids_database = get_item_ids()
+    # item_ids_to_write = item_ids.difference(item_ids_database)
+    # logger.debug(f'item_ids_to_write: {item_ids_to_write}')
     logger.debug(f'counter: {scraper_async.counter}')
-    for item_id in item_ids_to_write:
+    for item_id in item_ids:
         logger.debug(f'item_id: {item_id}')
         data_tuple = tuple(
             (item_data for item_data in data[item_id].values()))
@@ -94,9 +94,9 @@ def write_to_db(data):
 ######################### INITIATE DB CREATION ################################
 ###############################################################################
 def create_dataox_db():
-    user_name = 'dataox_async7396'
-    user_password = 'jiWkLUYZMK'
-    db_name = 'dataox_async'
+    user_name = 'dataox_async_id8135'
+    user_password = 'LyWTtvxobT'
+    db_name = 'dataox_async_id'
     try:
         # Create connection
         connection = psycopg2.connect(database='postgres',
@@ -159,8 +159,7 @@ def create_table():
     table_name = 'items'
     sql_create_table = f'''
                             CREATE TABLE IF NOT EXISTS {table_name} (
-                            id SERIAL PRIMARY KEY, 
-                            data_listing_id BIGINT NOT NULL,
+                            id BIGINT PRIMARY KEY NOT NULL,
                             data_vip_url VARCHAR(512),
                             image_url VARCHAR(512),
                             title VARCHAR(255),

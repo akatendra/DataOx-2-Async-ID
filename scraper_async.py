@@ -7,6 +7,9 @@ import database_async
 
 # Global variables
 counter = 0
+page_counter = 0
+feature_counter = 0
+regular_counter = 0
 # End Global variables
 
 # Set up logging
@@ -86,14 +89,17 @@ def convert_date(date):
 
 
 def parse_html(html):
-    global counter
+    global counter, page_counter, feature_counter, regular_counter
     logger.info(f'Hi from parse_html func!')
+    page_counter += 1
     BASE = 'https://www.kijiji.ca'
-    soup = BeautifulSoup(html, 'lxml')
+    page_number = html[0]
+    soup = BeautifulSoup(html[1], 'lxml')
     items = soup.select('div[class*="search-item"]')
     logger.debug(
         '##################################################################')
-    logger.debug(f'Number of items founded on page:  {len(items)}')
+    logger.debug(
+        f'Number of items founded on page {page_number}:  {len(items)}')
     logger.debug(
         '##################################################################')
     data = {}
@@ -107,22 +113,30 @@ def parse_html(html):
         # In case of an error, we move on to parsing the next item.
         try:
             data_listing_id = int(item['data-listing-id'])
+            logger.debug(
+                '##################################################################')
             logger.debug(f'Detected data_listing_id:  {data_listing_id}')
 
             if data_listing_id in data_listing_id_from_db:
                 logger.debug(
                     f'Detected data_listing_id is already exist in database: {data_listing_id} | Skipped...')
                 logger.debug(
-                    '##############################################################')
+                    '##################################################################')
                 continue
             else:
                 counter += 1
+                logger.debug(f'counter: {counter}')
                 logger.debug(
-                    f'counter: {counter}')
+                    f'Detected on page {page_number} data_listing_id is taken in work: {data_listing_id}')
                 logger.debug(
-                    f'Detected data_listing_id is taken in work: {data_listing_id}')
-                logger.debug(
-                    '~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+                    '##############################################################')
+
+                logger.debug(f"item['class']: {item['class']}")
+                if 'top-feature' in item['class']:
+                    feature_counter += 1
+                else:
+                    regular_counter += 1
+
                 # Working with a title.
                 item_a = item.select_one('a[class="title"]')
                 logger.debug(f'item_a:  {item_a}')
@@ -135,18 +149,29 @@ def parse_html(html):
                 item_title = item_a.text.strip()
                 logger.debug(f'item_title: {item_title}')
 
-                # Getting an image url.
-                item_image_url = item.select_one('img')['data-src']
-                logger.debug(
-                    f'item_image_url | len: {len(item_image_url)} | {item_image_url}')
-
+                item_image_url = None
+                try:
+                    # Getting an image url.
+                    item_image_url = item.select_one('img')['data-src']
+                    logger.debug(
+                        f'item_image_url | len: {len(item_image_url)} | {item_image_url}')
+                except KeyError as key_error:
+                    if str(key_error) == 'data-src':
+                        item_image_url = None
+                        logging.exception(
+                            f"Exception KeyError: 'data-src' occurred and fixed! | {key_error}")
+                except UnboundLocalError as unb_loc_Error:
+                    item_image_url = None
+                    logging.exception(
+                        f"Exception UnboundLocalError: item_image_url not referenced! | {unb_loc_Error}")
                 # Getting a description_min.
                 item_description_min = item.select_one(
                     'div[class="description"]').text
                 logger.debug(
                     f'item_description_min original | len: {len(item_description_min)} | {item_description_min}')
                 if '...' in item_description_min:
-                    item_description_min = item_description_min.split('...')[0] + '...'
+                    item_description_min = item_description_min.split('...')[
+                                               0] + '...'
                 logger.debug(
                     f'item_description_min before space strip | len: {len(item_description_min)} | {item_description_min}')
                 item_description_min = splitlines(item_description_min)
@@ -159,7 +184,8 @@ def parse_html(html):
                     'div[class="tagline"]')
                 if item_description_tagline:
                     item_description_tagline = item_description_tagline.text.strip()
-                    item_description_tagline_len = len(item_description_tagline)
+                    item_description_tagline_len = len(
+                        item_description_tagline)
                 else:
                     item_description_tagline = None
                     item_description_tagline_len = None
@@ -199,11 +225,15 @@ def parse_html(html):
                         'span[class="intersection"]')
                     logger.debug(
                         f'item_intersections_list: {item_intersections_list}')
-                    item_intersections = item_intersections_list[0].text + ' / ' + item_intersections_list[1].text
+                    item_intersections = item_intersections_list[
+                                             0].text + ' / ' + \
+                                         item_intersections_list[1].text
+                    item_intersections_len = len(item_intersections)
                 else:
                     item_intersections = None
+                    item_intersections_len = None
                 logger.debug(
-                    f'item_intersections | len: {len(item_intersections)} | {item_intersections}')
+                    f'item_intersections | len: {item_intersections_len} | {item_intersections}')
 
                 # Getting beds.
                 item_beds = item.select_one(
@@ -238,32 +268,36 @@ def parse_html(html):
                 logger.debug(
                     f'item_date:  {item_date.strftime("%d-%m-%Y %H:%M")}')
                 item_add_date = datetime.now()
-        except Exception as err:
-            logging.exception('Exception occurred during parsing!')
+
+                # data writing into a dictionary.
+                item_dict = {'id': data_listing_id,
+                             'data_vip_url': item_url,
+                             'image_url': item_image_url,
+                             'title': item_title,
+                             'description_min': item_description_min,
+                             'description_tagline': item_description_tagline,
+                             'description': item_description,
+                             'beds': item_beds,
+                             'price': item_price,
+                             'currency': item_currency,
+                             'city': item_city,
+                             'intersections': item_intersections,
+                             'rental_type': 'Long Term Rentals',
+                             'publish_date': item_date,
+                             'add_date': item_add_date
+                             }
+                # Put data dictionary as 'value' in new dictionary
+                # with item_id as 'key'.
+                data[data_listing_id] = item_dict
+
+        except Exception as error:
+            logging.exception(f'Exception occurred during parsing! | {error}')
             continue
-        # data writing into a dictionary.
-        item_dict = {'data_listing_id': data_listing_id,
-                     'data_vip_url': item_url,
-                     'image_url': item_image_url,
-                     'title': item_title,
-                     'description_min': item_description_min,
-                     'description_tagline': item_description_tagline,
-                     'description': item_description,
-                     'beds': item_beds,
-                     'price': item_price,
-                     'currency': item_currency,
-                     'city': item_city,
-                     'intersections': item_intersections,
-                     'rental_type': 'Long Term Rentals',
-                     'publish_date': item_date,
-                     'add_date': item_add_date
-                     }
-        # Put data dictionary as 'value' in new dictionary
-        # with item_id as 'key'.
-        data[data_listing_id] = item_dict
-        logger.debug(
-            '##############################################################')
+    logger.debug(
+        '##############################################################')
     logger.debug(f'New items detected during parse: {len(data)}')
     logger.debug(
         '##############################################################')
     return data
+
+

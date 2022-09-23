@@ -45,15 +45,15 @@ def spent_time():
     return time_str
 
 
-async def fetch(session, url):
+async def fetch(session, page_number, url):
     try:
         async with session.get(url) as response:
-            logger.debug(f'url: {url}')
+            logger.debug(f'page_number: {page_number} | url: {url}')
             logger.debug(f'Status: {response.status}')
             logger.debug(
                 f'Content-type: {response.headers["content-type"]}')
             html = await response.text()
-            return html
+            return page_number, html
     except Exception as error:
         logger.debug(f'{str(error)}')
 
@@ -68,7 +68,7 @@ async def main():
 
     async with aiohttp.ClientSession(headers=headers) as session:
         for url in urls:
-            tasks.append(fetch(session, url))
+            tasks.append(fetch(session, url[0], url[1]))
         htmls = await asyncio.gather(*tasks)
     return htmls
 
@@ -90,23 +90,17 @@ if __name__ == "__main__":
 
     # Getting urls
     urls = []
-    for page_number in range(1, 101):
+    for page_number in range(1, 94):
         logger.debug(f'Take in work page: {page_number}')
         if page_number == 1:
             page_url = url1 + url2
         else:
             page_url = f'{url1}page-{page_number}/{url2}'
         logger.debug(f'page_url: {page_url}')
-        urls.append(page_url)
-    logger.debug((f'urls count: {len(urls)}'))
+        urls.append((page_number, page_url))
+    logger.debug(f'urls count: {len(urls)}')
 
     htmls = asyncio.run(main())
-
-    # asyncio.set_event_loop(asyncio.ProactorEventLoop())
-    #
-    # loop = asyncio.get_event_loop()
-    # htmls = loop.run_until_complete(main())
-    # loop.close()
 
     # Storing the raw HTML data.
     for html in htmls:
@@ -125,4 +119,4 @@ if __name__ == "__main__":
     else:
         elapsed_time_str = f'| {round(elapsed_time, 1)} sec'
     logger.info(
-        f'Elapsed run time: {elapsed_time_str} seconds | New items: {scraper_async.counter}')
+        f'Elapsed run time: {elapsed_time_str} seconds | Page_counter: {scraper_async.page_counter} | htmls count: {len(htmls)} | New items: {scraper_async.counter} | feature: {scraper_async.feature_counter} | regular: {scraper_async.regular_counter} | feature + regular: {scraper_async.feature_counter + scraper_async.regular_counter}')
