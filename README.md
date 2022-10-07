@@ -4,6 +4,8 @@ Async Web Scraping www.kijiji.ca site with asyncio and save scraped information 
 ### The project is built on libraries: ###
 asyncio
 
+aiohttp
+
 BeautifulSoup
 
 psycopg2
@@ -11,7 +13,7 @@ psycopg2
 
 ### Для запуска программы: ###
 1. В файле database_async.py в строках 102-106 указать параметры подключения к БД PostgreSQL для создания БД проекта, пользователя и таблицы.
-2. После этого запустить файл database.py_async. Будет создана БД, пользователь БД и таблица для записи данных.
+2. После этого запустить файл database_async.py. Будет создана БД, пользователь БД и таблица для записи данных.
 3. Запустить файл async.py
 
 Парсинг производиться асинхронно. На моем компьютере это занимает 2,5 минуты на 3200 записей. 
